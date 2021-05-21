@@ -1,0 +1,83 @@
+\section{Serialization}
+\subsection{Introduction}
+One key element of modern computing is the ability to share information between many pieces of software. Moreover, to preserve the advantages of newer and more powerful hardware, this communication must be done efficiently by design. To do so, a serialization protocol must be used, which must satisfy a number of major points:
+\begin{itemize}
+	\item Data must always be serialized in a well-known format
+	\item It must be possible to serialize data in multiple formats, especially:
+	\item A format that requires minimal changes from in-memory data
+	\item A format that is human-readable
+\end{itemize}
+These points can be satisfied if the serialization is defined generically, through serialization methods and schemata. These methods refer to the primitive types, out of which schemata are built, and to the composition of types according to the schemata. By changing between the serialization methods, it becomes possible that a single serialization standard and library can handle formats such as ASN (BER, DER, etc.), XML, JSON, structured text produced by shell commands, binary formats of other serializers, or other formats. Therefore, the serialization must be thought of as
+\begin{center}
+	format = methods + schemata
+\end{center}
+In this case, the methods handle the syntactical part of serialization, while schemata handle the semantical part.\\
+Typically, schemata can be inferred from the typed records (such as structs and classes in C++); however, on public interfaces, they must be published as shared data, so that other software can easily parse serialized data.\\
+If the higher-level protocol is designed to allow it, schemata and other format information may be embedded in the serialized data. Judicious choice of the split between prior published and in-band format information allows for more efficient storage and transfer of data.
+\subsection{Primitive types}
+All serialization can be built upon fixed-width integers (1-, 8-, 16-, 32-, and 64-bit, which we will refer to as standard sizes). These are the fundamental primitive types, and are enough to serialize any data. However, to improve efficiency in textual encodings and standardize interfaces, the following are considered primitive types, too:
+\begin{itemize}
+	\item Pointer/size
+	\item Arrays
+	\item Floating point numbers (IEEE 754)
+	\item Binary data
+	\item Character strings
+	\item Date-time instants, durations and intervals
+\end{itemize}
+\subsubsection{Implementation in binary formats}
+Endianness of data must be specified in the format; by default data must be little-endian. The format must also specify if it is bit-aligned or byte-aligned (therefore, if 1-bit integers are stored in a single bit or in a byte).\\
+The width of the size/pointer must be specified in the format and is typically controlled by the serializing application.\\
+Arrays must stored as a size (pointer) followed directly by the data of each element.\\
+Floating point numbers are interpreted as integers of the same width, according to their IEEE 754 interpretation, and stored as such.\\
+Binary data (blobs) are stored as arrays of 8-bit integers (bytes).
+Character strings are stored as binary data, in UTF-8 encoding.\\
+Date-time instants and durations are stored as the number of seconds since the UNIX epoch, with the integer part stored in a 64-bit signed integer and the fractional part in another 64-bit unsigned integer (which is treated to have the same sign as the signed integer). Up to endianness, these can be treated as 128-bit signed integers. Intervals are stored as the midpoint instant and their duration.
+\subsubsection{Implementation in textual formats}
+Fixed-width integers are stored in their decimal (base 10) representation.\\
+Since textual formats use key characters for separating data, element sizes are not necessary. More precisely:
+\begin{itemize}
+	\item Pointers are implemented as integers.
+	\item Arrays are implemented by directly embedding the data of each element.
+\end{itemize}
+Floating-point numbers are stored as their base-10 counterpart in "general" notation (digits or engineering notation) using decimal digits (in base 10).\\
+Binary data is Base64-encoded.\\
+Character strings are stored in the encoding specified by the underlying textual format, or UTF-8 otherwise, with the appropriate escaping defined in the underlying textual format.\\
+Date-time data are encoded according to ISO 8601.
+\subsection{Typing system, polymorphism, and default schema}
+The serialization format follows structural typing, with name matching requirement, and supports generic types. Through generic types, the default schemata enables subtype polymorphism through the use of typed pointers.\\
+\paragraph{Default schema} A default schema that must be loaded by serializers and deserializers must be defined so that parsing of further schemata and data is bootstrapped. The schema for a type is serialized in the following way:
+\begin{itemize}
+	\item The type ID, to check schemata integrity ("TypeID")
+	\item The type name, as a character string ("TypeName")
+	\item An array of generic type parameters, which should be unused type IDs ("TypeParams")
+	\item An array of members, which stores the name, as a character string, and concrete type ID for each member. ("Members")
+\end{itemize}
+If a type does not have generic type parameters, the length of the array must be zero.\\
+For non-generic types, the concrete type ID is the type ID itself. For generic types, the concrete type ID is the type ID of the generic type followed by the concrete type IDs of the type parameters, stored similarly to the members of an array (without the length or the nesting).\\
+On-disk type IDs are size/pointer types. To allow software to use schemata of multiple sources, on-disk type IDs must be mapped to unique in-memory IDs. It is assumed that the unique IDs are the type member arrays of the types; this is correct due to the structural typing system used for serialization. It is recommended that implementations also use the TMAs as IDs, which should be appropriately hashed and re-hashed as needed, for practical reasons.\\
+\paragraph{Typed pointers}
+To enable subtype polymorphism, as well as strongly typed pointers, the default serialization schema defines a generic pointer, which is a type named "Pointer", with the following members:
+\begin{itemize}
+	\item The type ID of the object pointed to ("Type")
+	\item A location in the input stream, relative to the beginning of the stream, of pointer type ("Ptr")
+\end{itemize}
+The generic type of the typed pointer is by definition the super-type of the data, and thus must be handled specially by the serializer. In C++ parlance, the type is
+\begin{verbatim}
+Pointer<T> : T
+\end{verbatim}
+\paragraph{External pointers}
+To enable loading object graphs across from multiple resource origins, the default schema defines the type "ExternalPointer", which extends (in the sense of this specification, not as a subtype) typed pointers, with the member "Source", which is a character string representing the URI of the external resource. It is recommended that the URI scheme used can hold both an URL and URN.\\
+The URI resolver is implementation-defined. A later revision of this document may provide further specification regarding the URI resolver.\\
+Serialization implementations must allow external pointers only as an opt-in feature for the applications. Any applications that enable this feature must have an opt-in switch for enabling external pointers from user-supplied serialized data.\\
+\subsection{Further information}
+\paragraph{Typing systems other than structural}
+It is up to the serialization implementation to ensure the correctness of type translation across type system boundaries.
+\paragraph{Nominal typing} Many popular runtime environments (and the programming languages targeting them) are nominally typed. Because most such languages are in fact structurally subtyped as well, the mapping is often trivial. There are 2 issues which must be handled by serialization implementations:
+\begin{itemize}
+	\item Type resolution, under the constraint of nominal subtyping
+	\item Inheritance with clashing member names and types
+\end{itemize}
+TODO: Suggest solutions to these issues
+\paragraph{Extensions}
+All compliant implementations of this serialization format that support extensions to this format must provide a mechanism of warning when extensions are emitted or read from a serialized document.\\
+Null terminated strings were intentionally not included in the format, which is designed to not have in-band signaling. It is expected that some implementations may choose to allow such strings by extending the serialization format. Beyond the required warning, such implementations that support in-band signaled types must fail-fast on encountering such input when running in compliance mode. This is to mean that if this serialization format is used as an industrial standard, then the use of in-band signaled types, such as null terminated strings, is incompatible with said the resulting standard. Components that interface with legacy infrastructure are exempted from the previous statement if appropriately labeled as such.

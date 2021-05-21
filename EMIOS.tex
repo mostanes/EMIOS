@@ -1,0 +1,62 @@
+\documentclass[a4paper,utf8,11pt]{article}
+\usepackage{geometry}
+\geometry{a4paper, left=0.75in, right=0.75in, top=1in, bottom=1in}
+\usepackage{url}
+
+\title{Efficient middle-level interfaces for operating systems}
+\author{}
+\date{Draft 0.2 rev. 10}
+
+\begin{document}
+	\maketitle
+	
+	\include{Introduction}
+	\section{Contents}
+	\tableofcontents
+	\include{Security}
+	\include{Filesystem}
+	\include{Syscall}
+	\include{Serialization}
+	\include{Extras}
+	\include{Deployment}
+	\include{Bus}
+	\include{SysEvents}
+	\include{SIRM}
+	\section{Suggestions and references}
+	This section contains further supporting material for some of the choices made in this document. These are mostly opinions and implementation details, and do not mandate requirements for interfaces.
+	\subsection{Filesystem Hierarchy}
+	There have been various views on the everything-is-a-file concept of UNIX/POSIX. This document has tried to be accepting of such views. It should be noted that otherwise, the main/default view of this document is along the lines of the POSIX, but with a virtual root filesystem, which is unique to the kernel instance, on top of which data is grafted through mounts and overlays.\\
+	In terms of Linux naming, the initialization of the filesystem hierarchy occurs along the following lines:
+	\begin{itemize}
+		\item The kernel creates tmpfs on /
+		\item The kernel creates the basic folders /dev, /etc, /bin, /proc, /mnt, the former 3 in fact overlays.
+		\item The kernel populates /dev according to kernel policy
+		\item The kernel mounts /proc
+		\item The kernel creates /mnt/init and mounts the initramfs there, as a system mount
+		\item Being a system mount, the kernel overlays /etc and /bin on the root
+		\item The kernel calls the init as /bin/init
+		\item The initramfs init system populates /dev according to init policy (kernel $\rightarrow$ software distribution policy switch)
+		\item The initramfs init system creates all other relevant folders in /
+		\item The initramfs init system mounts the OS filesystem in /mnt/root as a system mount
+		\item As a system mount, /etc and /bin are overlayed
+		\item The initramfs init calls the on-disk init as /bin/init
+		\item The on-disk init unmounts the /init initramfs and removes the folder
+		\item The on-disk init populates /dev according to system policy (SD policy $\rightarrow$ sysadmin policy)
+	\end{itemize}
+	\subsection{See also}
+	\begin{tabular}{|c|c|}
+		\hline
+		POSIX is out-of-date & \url{http://pl.atyp.us/2016-05-updating-posix.html} \\
+		\hline
+		Builds & \url{http://www.csl.sri.com/users/gehani/papers/FMICS-2018.Wholly.pdf} \\
+		\hline
+		Cathedral \& Bazaar (phk) & \url{https://queue.acm.org/detail.cfm?id=2349257}\\
+		\hline
+		Systems software research is irrelevant (Rob Pike) & \url{http://doc.cat-v.org/bell_labs/utah2000/}\\
+		UNIX style or cat -v considered harmful & \url{http://harmful.cat-v.org/cat-v/}\\
+		Structural regular expressions (Rob Pike) & \url{http://doc.cat-v.org/bell_labs/structural_regexps/}\\
+		\hline
+		Witchcraft Compiler Collection & \url{https://github.com/endrazine/wcc}\\
+		\hline
+	\end{tabular}
+\end{document}

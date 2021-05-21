@@ -1,0 +1,29 @@
+\section{System and library calls overhaul}
+\subsection{The case for Unified Fork-Exec}
+Typical POSIX-compliant operating systems implement starting up new applications in a 2-step process, by invoking fork(), then exec(). Unfortunately, despite the ease of configuration of the new process that this mechanism provides, it poses several drawbacks due to the semantics of fork(). One such drawback is the duplication of the private memory of the process; even if this is implemented through copy-on-write, the duplication of page tables and resource descriptors can have a non-trivial cost. Even worse, this operation increases the committed memory, usually requiring overcommit, which invalidates ENOMEM (resulting in a vicious cycle of bad design).\\
+POSIX provides posix\_spawn() to provide unified fork and exec. Since this function takes structure arguments created by calling other POSIX functions, EMIOS mandates the implementation of a second unified fork-exec function, "emios\_spawn()", with the following signature:\\
+int emios\_spawn(pid\_t* pid, int execfd, const char* argv, const char* envp, int stdin, int stdout, int stderr, const char* directory);\\
+These arguments are, for the new process, in order:
+\begin{itemize}
+	\item a buffer for storing the resulting process id
+	\item a file descriptor of the executable
+	\item the command-line arguments
+	\item stdio (stdin, stdout, stderr) descriptors
+	\item working directory
+\end{itemize}
+The stdio descriptors are inserted into the new process as if dup2() was called to set them between fork and exec. The working directory is set as if chdir() was called between fork and exec. This function should not duplicate any resources other than those specified as arguments to the function call, when creating the new process. In particular no handles\footnote{This includes file descriptors used as capabilities in CBS.} other than stdio should remain open in the child. The context of the child process must be the same as the caller's, including security flags\footnote{such as Linux capabilities (which are distinct from CBS capabilities)} or resource namespaces. All other behavior defaults to the same as calling exec() after a fork().
+\subsection{Error handling}
+The errno mechanism of error handling has been shown to have significant drawbacks in modern operating systems, with complex mitigations in place. On the other hand, there are multiple approaches to handling exceptional conditions (often, each language runtime has one). A method of handling such different approaches generically is to use an "exception manager".\\
+An exception manager is a function running in a separate stack (on the faulting thread or a different thread), which takes as arguments the error received from the operating system, and the CPU state when the fault occurred. The exception manager can then choose what to do next; for example set errno, walk the stack for exception handlers, or even prompt the user with a debugger. It must be possible for exception manager calls to be nested.\\
+TODO: Precisely define Exception Manager API
+\subsection{Up to date other functions}
+TODO: Expand section.\\
+TODO: Some portions only need simple updates; for example, 64-bit Unix timestamps + 64-bit subsecond component. Some of this functionality has been covered by existing OSes.\\
+TODO: Some portions require more extensive semantical analysis -- POSIX functions have generally been designed with a single-thread-per-process model; this may pose problems in some multi-threaded cases (umask and file creation is such an example).
+\subsection{Machine readable system definitions}
+POSIX (and to a large degree, this document too) describes the available system calls, error codes, flags, and other definitions in terms of the C language. This hampers the use of other runtimes or languages (particularly as C syntax is hard to parse, and some constructs are syntactically undecidable). To fix this issue, operating systems should provide the information in a serialized form that respects the following chapter. For portability and compatibility reasons, it is recommended that operating systems use XML among the other formats.
+TODO: Define the schemata for the definitions.
+\subsection{Message queues and asynchronous system calls}
+It is suggested to operating systems to also provide an asynchronous interface for system calls, which may improve performance for a wide variety of workloads.\\
+It is suggested that an efficient way of doing asynchronous syscalls may be through the use of message queues, if these are combined with atomics and/or proper locking, as well as the affine substructural typing on shared memory accesses, to prevent security breaches through ToCToU races.\\
+TODO: Analyze the performance implications of designs and the opportunities to implement affine typing on shm access.

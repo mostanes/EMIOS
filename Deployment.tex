@@ -1,0 +1,182 @@
+	\section{Software deployment}
+Software deplyoment is one of the key areas of middle-level operating system design; good software deployment schemes enable building much more complex and high-level operating systems. In this area, different approaches have been invented and rediscovered over the years. There are 3 main pillars in the design of software deployment:
+\begin{itemize}
+	\item Building
+	\item Dependency management
+	\item Deployment to users
+\end{itemize}
+These pillars are non-trivially interconnected and improving software deployment requires integration with all three steps.
+\subsection{Build systems}
+Build systems have been used to automatically compile software, but more recent designs include some form of dependency management. This is due to the fact that software does not live in isolation and is often built on top of other software. The evolution of build systems shows that it is possible to build software given that dependencies have been satisfied in a very generic manner (much of today's software is built in terms of Makefiles), but most of the build systems designed to handle dependencies are specialized to specific languages or technology platforms (such as Cargo for Rust, NAnt, Maven or Gradle for Java, MSBuild for dotnet, sbt for Scala, etc.). Therefore, to enable interoperability of technology built on different stacks it is necessary to have a general build systems (similar to Make) which can handle dependencies in a general manner too. Such a system would provide fundamental improvements to end-user deployment too.
+\subsection{Dependency management}
+To achieve generic dependency management, build systems and package managers must agree on a common method of referencing software. A powerful and generic method for doing so is using URNs; with pluggable dependency resolvers.\\
+\subsubsection{URN namespace for dependency management}
+An URN scheme, using the NID "swdep" (software dependency), for dependency management is the following:
+\begin{center}
+	urn:swdep:dep-type:dep-domain:dep-name;options
+\end{center}
+The dependency type, denoted by dep-type, selects the type of dependency requested. It can be of two types, "swpkg", for an actual software package, or "iface", for an interface specification which may be satisfied by one of several packages. It is strongly recommended that the interface specifications are used whenever possible. The interface dependencies should include dynamic libraries required by the software; build systems and dependency resolvers should first attempt to solve the dependencies as dynamic libraries, through the package manager, before fetching them as static libraries.\\
+The package domain, denoted by pkg-domain, is a registered repository, not necessarily a DNS domain, but rather a namespace for dependencies. However, for practical reasons, we recommend using the DNS domain for common package repositories (for example ctan.org, cpan.org, crates.io, nuget.org, etc.), or an X-name for experimental repositories or other repository schemes. Dependency resolvers should be selected based on the dependency domain.\\
+The dependency name (dep-name) is the name of the package as stored in the repository. The options are provided for selecting the appropriate variant of the dependency, and are encoded in key-value form. The encoding used for options is percent encoding, as defined in RFC3986, with the exception of the following characters, which are unreserved: '(', ')', '*', '+', '[', ']', '<', '>'. Such options include the suitable package versions.\\
+Examples:
+\begin{itemize}
+	\item urn:swdep:iface:java.com:jre;ver=1.9->1.14
+	\item urn:swdep:iface:java.com:jdk;ver=1.9->1.14
+	\item urn:swdep:iface:mono-project.com:mono-runtime;ver=5.0+>
+	\item urn:swdep:iface:mono-project.com:bcl;ver=4.0
+	\item urn:swdep:swpkg:crates.io:parking-lot;ver=1.2
+	\item urn:swdep:swpkg:crates.io:rand;ver=0.7.3->0.8.2
+	\item urn:swdep:swpkg:nuget.org:eto.forms;ver=2.5.8+>
+	\item urn:swdep:swpkg:mvnrepository.com:org.bouncycastle;jdk=1.6\&ver=1.45+>
+\end{itemize}
+TODO: Define default available options.
+Dependency version is specified by the "ver" keyword, which should take as an argument either of a fixed version string, a range of versions or a minimum version. Version ranges are separated by the "->" sequence, which should not be a substring of any valid version string. Minimum version is specified by the string of the minimum version, followed by the "+>" sequence, which should also not be a substring of any valid version string. When comparing version strings, the sort must be in natural order, i.e. lexicographic with the exception of numeric fields and letter case. The order of Unicode version strings that contain non-ASCII characters is undefined behavior; the use of non-ASCII characters in version strings is strongly discouraged.
+\subsection{Versioning}
+Package management resolvers should be able to understand versioning of packages. Package repositories may implement various forms of version compatibility schemes, but it is suggested that semantic versioning is employed. It is recommended that it is used in the following way:
+\begin{itemize}
+	\item A "beta" flag, stored out-of-band, indicates if software is under heavy turnover
+	\item If "beta" flag is down, then classic semantic versioning is used:\\
+	Format: major.minor.patch-postdash
+	\begin{itemize}
+		\item Major number changes every time a breaking change occurs
+		\item Minor number changes every time a new feature is introduced
+		\item Patch number changes for every other change
+		\item Postdash should contain build-specific information
+	\end{itemize}
+	\item If "beta" flag is up, then the semantic versioning used is:\\
+	Format: major.minor.feature.revision-postdash
+	\begin{itemize}
+		\item Major number changes every time the architecture changes
+		\item Minor number changes every time a breaking change occurs
+		\item Feature number changes every time a new feature is introduced
+		\item Revision number changes for every other change
+		\item Postdash should contain build-specific information
+	\end{itemize}
+\end{itemize}
+It is recommended that versions (excluding build-specific postdash) are linked with hashes of the package sources.
+\subsection{DOBS build system}
+The POSIX make is a versatile tool, but it is encumbered by dubious syntax choice and a severe lack of interoperation. A few examples of these problems are: the choice of "recipe prefix symbol", most notably due to the default of the tab character (therefore require separate handling in editors where tabs are automatically replaced with spaces), the cryptic implicit variable names (such as \$\@), the presence of built-in default rules, the lack of "include" statements (these are in fact present on most make implementations, but are non-standard and seldom used). Other difficulties come from the very different implementations of make used, which include many useful extensions to POSIX make. All these, and others, are even explained in the POSIX rationale.\\
+To solve this issue, we propose the Digital Object Build System (DOBS) standard, modeled on make, but which addresses these concerns and adding dependency management. Similar to make, the build process in governed by obfiles.\\
+The obfiles must be parsable by the serializer into a DOM tree. It is required that obfiles should default to a text format, but implementations should allow binary formats too. In the text format, brackets should be used to separate content into blocks, which shall be called enumeration brackets. It is recommended that curly brackets be used for this purpose. The obfiles must be treated as surrounded by a pair of brackets, which shall be the root node. Enumeration elements shall be separated by a semicolon.\\
+The obfile DOM is made of typed variables and comments. To control parser behavior, anonymous variables can be used, by using the dot symbol "." to directly invoke a parser directive. Other variables are named. All implementations must define at least the following types of variables:
+\begin{itemize}
+	\item Deferred string expansion
+	\item Immediate string expansion
+	\item Rule
+	\item Internal dependency
+	\item External dependency
+	\item Enumerations
+\end{itemize}
+The string expansion variables act as their makefile counterparts. Rules are considered variables in DOBS and are named after the target. Enumerations are lists of other variables. The variables in anonymous enumerations must be in-scope for expressions in the parent enumeration. Just as in POSIX make, a variable must be prefixed by the symbol '\$'.\\
+All explicitly defined variables must begin with the variable name (which, for readability should be formed of only alphanumeric ASCII latin characters), and must be followed by an assignment operator.\\
+Rules accept pattern matching through regular expressions. The target and dependencies in the rule must be surrounded by pairs of '\%' characters. The match is done on the rule target; the rule dependencies are generated by their regular expression as a replacement of the empty string.\\
+TODO: This likely needs PCRE-flavored regexes.\\
+Rules take the form (similar to make):
+\begin{center}
+	target [multi-target] : depedencies recipe
+\end{center}
+The target is the variable name containing the rule. An enumeration variable of build targets can follow the name of the target variable. If no such enumeration is given, it is implied to be an enumeration of a single build target with the same name as the target variable. This ensures that the same recipe can build multiple target objects or none at all (such as in the case of a .PHONY target in classical make). The dependencies must be an enumeration variable, containing variables that are either internal dependencies or external dependencies. The recipe is also an enumeration variable, containing the rules for building the target. Any such enumeration variables can be in-line or not.\\
+To allow recipes to be written in a variety of languages, some of which may not be easily parsable by the serializer, it is recommended that implementation allow an operation mode where the ending bracket for the recipe must be the first character on a newline.\\
+All DOBS implementations must implement the "INCLUDE" directive, which should be followed by the path or the URN of another obfile. The result of this directive must be the root enumeration of the included obfile. It is strongly recommended to software distributions, language and runtime designers as well as application developers to standardize common rules, which should be available globally for inclusion in obfiles. This is also the reason URNs must be supported in the inclusion directive.\\
+Internal dependency variables are resolved from strings after the entire obfile is read, with the following algorithm:
+\begin{itemize}
+	\item Check if the name is registered by any rule. If so, register the rule as a dependency.
+	\item Check if the name is a file. If so, register the file as a dependency.
+\end{itemize}
+This is a notable difference from POSIX make. The rationale behind it is that the obfile is a representation of the build process and the DOM must contain the full information on how the objects are built from the bottom up, unlike make where the only objective is that the objects are "just built".\\
+External dependencies are created through the "EXTDEP" directive, which should be followed by the URN of the external dependency. The URN of the external dependency should be resolved by extension modules to the DOBS implementation, which should be selected by the package domain identifier.\\
+Because obfiles (and DOBS) represent the build process, it is recommended that IDEs integrate with DOBS, with tooling bound to recipes; for example commands such as "dobsimpl build-release" should build a release version and "dobsimpl debug" should begin debugging of the project. Therefore, DOBS implementations are required to provide all command-line functionality also as a library for other software to make use of. IDEs may wish to implement automatic incremental compilation to provide enhanced context during editing (such as autocomplete or in-line documentation), even when the projects are in different languages or runtimes. IDEs should also add appropriate dependencies (including through compiler-assisted automated dependencies) on creating a new or modifying an existing file within the same project.\\
+Other conventions not mentioned here should be implemented similar to POSIX make.\\
+For implicit variables, table \ref{tab:dobs-implicit-equivalence} contains the equivalences to the (more) explicit names used by DOBS.\\
+\begin{table}[h]
+	\centering
+	\begin{tabular}{|c|c|c|}
+		\hline
+		POSIX & DOBS & Explanation\\
+		\hline
+		\$@ & \$OUTF & Output file\\
+		\$\% & \$OUTM & Output member\\
+		\$\% & \$NINF & New input files\\
+		\$< & \$INF & Input file\\
+		\$* & \$OUTP & Output prefix\\
+		N/A & \$$\lbrace cg \rbrace$ & Capture group \textit{cg} in rule regex\\
+		\hline
+	\end{tabular}
+	\caption{Implicit variable name equivalence}
+	\label{tab:dobs-implicit-equivalence}
+\end{table}
+Each recipe must be run by a shell (specified by "RECIPESHELL" variable) in a fresh context, but not necessarily a new process. This is equivalent to the ".ONESHELL" extension to POSIX make found in many implementations. In particular, a DOBS implementation may run one or more shells in-process to which the recipes are dispatched.
+\subsubsection{Recommendations}
+A build system that implements DOBS is extensible through the INCLUDE directive, and this is a critical aspect of the DOBS build system. It is strongly recommended using this feature to implement build frameworks, which may allow features such as reproducible builds, distributed builds, build logging and analytics, CI pipeline integration, delta updating, and others.
+\subsection{Deployment}
+Virtually all modern operating systems use package managers, even those which are far from POSIX. Because there is a tremendous number of package managers, with almost no two compatible to one another, and modern software often has humongously sprawling dependencies, a few standard interfaces must be defined.
+\subsubsection{OS and Component packages}
+Complex software tends to be built from multiple related modules. Another common paradigm for complex software is to support plugins. Therefore, multiple packaging levels can occur: OS-level (traditional package managers), application component level (plugins), and even OS containers (virtual machines or kernel-based containers). In line with Unix philosophy of "do one thing well", software should not manage its own components; rather, a dedicate external software (package manager) should do it. This approach has been attempted in some distributions, with a limited set of software. A notable inconvenience of those approaches was the pollution of the repository with the myriad of supported plugins.\\
+Therefore package managers must support multi-level packages, such that both OS-level packages (applications) and component packages (application plugins) can be handled with a unified interface. Component packages must be supplied in separate namespaces, one for each application. Dependencies may cross namespaces.
+\subsubsection{Portable Interface}
+Package managers must expose a common, portable, interface to enable basic operations to be automated with higher-level tools.\\
+The following interfaces should be available:
+\begin{itemize}
+	\item Package status check
+	\item Installation
+	\item Removal
+	\item Upgrade
+	\item Database update
+\end{itemize}
+The package manager should provide an executable named "pkgmgr". It should accept the following commands:
+\begin{itemize}
+	\item statcheck package [...]
+	\item deptree package[=version]
+	\item install package[=version] [...]
+	\item remove package [...]
+	\item dbupdate
+	\item dblist
+	\item filelist package
+	\item stdio$^\dagger$
+	\item lockdb/unlockdb$^\dagger$
+\end{itemize}
+The commands marked with $\dagger$ are only available through certain interfaces.\\
+All packages should have names that conform to the URL-safe Base64 alphabet (RFC 4648 Section 5). In particular, whitespace and the equal sign are prohibited.
+\subsubsection{Packaging and building software}
+Unless provable to be side-dependency free, packages must be built in isolation, with only their specified dependencies available. Where the build system can guarantee the lack of side-effects from other installed software, this requirement can be relaxed.\\
+It is recommended that packages are built to bytecode and compiled to native code at installation time. It is also recommended that the bytecode format used is amenable to delta updating.
+\subsection{Pkgmgr interface}
+The package manager pkgmgr must implement the following commands, accessible via POSIX command-line, standard I/O and as an embedded application. For the next section, text mode refers to command-line, stdio and text-mode embedded interfaces; interactive mode refers to stdio and embedded interfaces. The opposites are typed mode and non-interactive mode.\\
+The schemata for the typed embedded interface should be available in "pkgmgr/command.sma", in the shared data folder. The schemata may be split over multiple files.
+\subsubsection{Specifying a package}
+Many commands accept package arguments. In text mode, a package is specified by the package name string. Where the version is optional, it can be appended to the package name, separated by the '=' character. Where multiple package names can be specified, elements in the list are separated by whitespace, preferably ASCII space. In the typed mode, the packages can be specified either by their package name or through a package handle (which is implementation-defined). These should be defined in the schemata. The type for the package handle should be named "pkghandle".
+\subsubsection{pkginfo schema}
+The schemata for pkgmgr should include a "pkginfo" type, including at least the package name "name", version "version".
+\subsubsection{statcheck}
+In text mode, it should return one line for each package, with tab-separated values (TSV format), with data in the following order:
+\begin{itemize}
+	\item Installed version (version string or empty if not installed)
+	\item Latest version (version string)
+\end{itemize}
+In typed mode, the function should return a list of package information including at least the information above. The members are named as above, in PascalCase (InstalledVersion, LatestVersion).
+\subsubsection{deptree}
+It should return the dependencies of the specified package. If no version is included, it is assumed the currently installed version, or, if the package is not installed, the latest version.\\
+In text mode, it should return one package per line, with package name string and version string separated by '='.\\
+In typed mode it should return a list of "pkginfo".
+\subsubsection{install}
+It tries to install the given package(s). For each package, it should report whether the installation succeeded, as true or false. In case the package was already installed, it should report success.
+\subsubsection{remove}
+It tries to remove the given package(s). Otherwise similar to install.
+\subsubsection{dbupdate}
+Updates the package database from upstream repositories.
+\subsubsection{dblist}
+List all packages in the (local) database.\\
+In text mode it should return one line for each package, with tab-separated values (TSV format), with the following entries:
+\begin{itemize}
+	\item Package name
+	\item Latest version
+	\item Installed version (version string or empty if not installed)
+\end{itemize}
+In typed mode it should return a list of "pkginfo".
+\subsubsection{filelist}
+It should return the path of all the filesystem entries (not necessarily files) within the package, relative to the installation root (equivalently, the absolute path within the package).\\
+In text mode it should return one path at a time. In typed mode it should return a list of paths.
+\subsubsection{stdio}
+Available only in command-line mode. It switches to receiving commands on stdio instead of command-line.
+\subsubsection{lockdb, unlockdb}
+Available only in interactive modes. Locks the package database to prevent other instances from effecting changes until the command unlockdb is received (or the program exits). This is to ensure consistency between commands.

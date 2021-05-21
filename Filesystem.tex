@@ -1,0 +1,49 @@
+\section{Filesystem}
+One known deficiency of the POSIX standard is its ability to cope with very fast I/O, particularly in the cases where the I/O interfaces are wide at full capacity (such as SSDs or large disk arrays). This is due to the API, which is inherently serial. Therefore, a new, parallel/asynchronous API is required, based on transactional and locking semantics.\\
+Inspired by the memory ordering in the C++20 standard, we define a synchronization and commit ordering model which applies to filesystem transactions (in-file synchronization) and file opening and closing (filesystem-wide synchronization), which must be atomic when committed. This model refers both to "pagefile synchronization" and "disk synchronization".\\
+Pagefile synchronization selects how all processes accessing the filesystem (on all machines that are kernel-synchronized on the same filesystem) can see the data in the filesystem. Disk synchronization selects how all kernel instances that can access the filesystem (usually at different times, but possibly at the same time) see the on-disk representation of the filesystem.\\
+The orderings present in the model are:
+\begin{itemize}
+	\item Consume disk\\
+	No synchronization; but for obvious reasons, no reads can happen before the file is read from disk.
+	\item Acquire pagefile\\
+	The file is acquired from the pagefile; no other unfinished transactions with the resource can begin before this transaction.
+	\item Release pagefile\\
+	All previous transactions must be committed to the pagefile before this transaction is ended.
+	\item Release disk\\
+	All previous transactions must be committed to disk before this transaction is ended.
+	\item Pagefile sequentially consistent\\
+	The view of the resource is synchronized across processes.
+\end{itemize}
+After a process exits, but before the child signal is called on its parent, a release pagefile transaction must occur. To maintain data integrity, on the first operation after opening a file, if no order information is given, an acquire pagefile transaction should occur.\\
+Moreover, read and write operations may specify a location in the file from which to read or write. If no such location is given, the old stream-seek behavior should be used. Current location of the stream should be preserved unmodified when reading or writing with a specified address.\\
+For performance and data integrity reasons, it is strongly recommended that operating systems provided and applications make use of an asynchronous release disk transaction. Applications should expect that in asynchronous settings, the release transactions may happen after the file is closed.\\
+Transactions on directories should be limited in their synchronicity only to their (immediate) children. For filesystem-wide synchronicity, the ordering is implemented in the opening and closing of files.\\
+\begin{itemize}
+	\item int begintxfs()\\
+	Begins a filesystem transaction, returning its descriptor.
+	\item int begintxfile(int fd)\\
+	Begins a transaction on a given file, returning its descriptor.
+	\item int endtx(int tx)\\
+	Ends a transaction. First argument is the transaction descriptor.
+	\item int reverttx(int tx)\\
+	Reverts a non-committed transaction, that is, clears transaction records and frees the transaction descriptor.
+	\item int committx(int tx, byte ordering)\\
+	Commits a transaction, that is, applies it to the filesystem as an atomic operation.
+\end{itemize}
+The transaction IDs less than 256 are reserved for implicit transactions.\\
+TODO: Expand transactions functions.\\
+TODO: Transaction commit timeout for filesystem transactions. Commit function should return EAGAIN. It should be related to I/O slice of the process. If EAGAIN happens too many times, processes may split a single transaction into multiple try-do with acquire-release.\\
+Examples of signatures of transactional equivalents of POSIX functions:
+\begin{itemize}
+	\item int topen(const char* path, int oflag, int txfs)
+	\item int tclose(int fd, int txfs)
+	\item int tremove(const char* path, int txfs)
+	\item int trename(const char* old, const char* new, int txfs)
+	\item int tpread(int fd, void* buf, size\_t nbyte, off\_t offset, int txfile)
+	\item int tpwrite(int fd, void* buf, size\_t nbyte, off\_t offset, int txfile)
+\end{itemize}
+On setting the transaction ID less than 256, the behavior should be as if a new transaction is created with the given operation and then committed, with the ordering specified in the transaction id.\\
+TODO: Error handling in this case -- the new error handling mechanism should allow this to be unambiguous.\\
+For system responsiveness and performance reasons filesystem-wide transactions should never lock all filesystems while the committed operations are performed. Ideally, a lock-free method should be used, unless contention is very high and progress cannot be made.
+No sequentially consistent ordering is present for disk due to performance reasons and usually lack of need (disk ordering is mostly required for the cases of an abrupt system stop).

@@ -1,0 +1,36 @@
+\section{IPC Buses}
+\subsection{Bus requirements}
+Buses should be discoverable. It is preferred that discoverability is achieved through the resource directory/Virtual FileSystem. The bus framework should not have single points of failure. In particular, different buses must use separate instances of IPC primitives and there must be no central daemon managing the buses.\\
+The buses may be one-to-many, broadcast many-to-many, or managed many-to-many. Examples usage of each bus types are:
+\begin{itemize}
+	\item One-to-many\\
+	Hardware announcements (network state changed, device plugged in, etc.), Display and multimedia (per seat user interaction manager / server\footnote{Generally a display server such as X, Sway, KWin in Wayland mode, etc.} $\leftrightarrow$ clients)
+	\item Broadcast many-to-many\\
+	Bazaar buses (low development overhead), multi-application/multi-process workflows
+	\item Managed many-to-many\\
+	Secure many-to-many IPC: clipboard, open-with, logging frameworks
+\end{itemize}
+Buses must be able to pass resource handles between clients, such as file descriptors, capability tokens, synchronization primitives, or audio endpoints. Resource handles must not be limited to kernel objects.
+\subsection{Interface}
+TODO: Develop interface standard\\
+Supported functions (C-like signatures):
+\begin{itemize}
+	\item int sendmsg(Channel bc, Array msg)\\
+	Sends an ordinary message.
+	\item int setmsgcb(Channel bc, MsgCB* callback)\\
+	Sets the message received callback
+	\item void MsgCB (Channel bc, Array msg, Metadata md)\\
+	Message callback signature.
+	\item int rgrsrv(SrvCB* callback)\\
+	Registers a resource server.
+	\item int ResCB(Bus bus, ClientHandle sender, ClientHandle receiver, size\_t hsize, void* handle)\\
+	Resource passing callback signature. The descriptor is amenable to mangling by the callback, such that it can safely be used by the receiver.
+	\item sendres(Channel bc, ClientHandle server, size\_t hsize, (stackalloc) <Handle> handle)\\
+	Sends a resource handle of a resource in the given server. The handle is passed on the stack.
+	\item int bindconn(Bus bus)\\
+	Available only to the the bus master. Makes the bus endpoint connection-oriented.
+	\item Channel accept(Bus bus)\\
+	Accepts a new connection on the bus.
+	\item Channel opench(Bus bus)\\
+	Opens a channel on the bus, making it not connectionless.
+\end{itemize}

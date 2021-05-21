@@ -1,0 +1,43 @@
+	\section{System Initialization and Runtime Management}
+\subsection{General considerations}
+Modern operating systems are expected to be highly modular and adaptable. Therefore, a good strategy for system services (daemons) must exist. Traditionally, in POSIX world these have been referred to as "init systems", even though there is a natural connection between initializing daemons and managing them. Recently, init systems have evolved to support daemon management, as expected. To highlight the change from the traditional POSIX world, we shall call such software "System Initialization and Runtime Mangaement frameworks" when referring in relation to this document.
+\subsection{EMIOS SIRM}
+A SIRM framework is required to split the management tasks from the initialization, to comply with the security and extensibility expectations in a modern operating system.
+Therefore, an EMIOS SIRM must have the following components:
+\begin{itemize}
+	\item Init process
+	\item Daemon manager
+	\item Launch helper
+	\item Logging framework
+\end{itemize}
+\subsubsection{Init process}
+The init process must handle precisely four things:
+\begin{itemize}
+	\item Ensuring the environment for the daemon manager
+	\item Starting the daemon manager
+	\item Reaping child processes
+	\item Sending child process exit information to the daemon manager
+\end{itemize}
+No other task may be done in a PID 1 process.
+\subsubsection{Daemon manager}
+The daemon manager must supervise the launch of daemons and other system servers, ensuring the correct startup ordering (including, where it is the case, that the components are functional as specified by the user and that the required targets have been met), and management of their lifetime (including resource accounting or restarting on failure).\\
+The daemon manager must manage daemons in an event-driven manner, integrating with system events. The daemon manager must provide events for starting, stopping or death of a daemon. It must also be able to listen to its own events or other system events, such as mounting or unmounting a filesystem, network interface initialization, and the creation or removal of seats. The daemon manager must provide simple and general methods to report their own initialization. Finally, the daemon manager must provide milestone events, called here "targets". System bring-up and shutdown should be realized by reaching the appropriate targets.\\
+TODO: Clarify targets (these should be the same as systemd targets).\\
+TODO: What about containers?
+\subsubsection{Launch helper}
+The launch of daemons should be through spawning (emios\_spawn(), for efficiency/security reasons) a helper process, to which the daemon configuration must be sent (as structured data or as a resource descriptor for a configuration file) by the daemon manager. During this configuration phase, the daemon manager may set up additional external quotas and boundaries. Following this phase, the daemon manager must send a startup signal to the helper process, which must then exec the target daemon as specified in the configuration.\\
+Alternatively, for performance reasons, the launch helper may be a spawned resident process common to multiple daemons that share the same runtime initialization\footnote{Similar to Android's zygote}.\\
+TODO: Develop the communication mechanism between the daemon manager and the launch helper. This should be through a socketpair.
+\subsubsection{Logging framework}
+The SIRM must ensure that the logging needs of the daemons are satisfied. It needs not implement itself a logging mechanism, and can rely on an external logging framework, but may also choose to implement one. In either case, the logging framework must support the following:
+\begin{itemize}
+	\item Logging stdio messages (stdout and stderr), which should be the default
+	\item Log timestamping, including UTC time and PID
+	\item Structured log exploration
+	\item Validating the existence of schemata of structured log data (where applicable)
+\end{itemize}
+Notably, SIRM should expect (most) daemons to provide logging output as structured data, whose schemata should be verified for existence (up to a user toggle, which should default to active). Nonetheless, legacy, text-only daemons must also be supported.\\
+On-disk logfiles must be parsable by the serializer, up to log messages, regardless of the presence of dedicated log reading software. This means that log file structures must be defined strictly in terms of on-disk schemata and serializer built-in methods. When parsing logfiles, the built-in log file reading software must be able to sort log data both in the disk order (the order in which messages were written to disk) and the UTC order. Discontinuities between the two (above a user-selectable threshold) must be clearly notified to the user.\\
+It is strongly recommended that log files are stored using a self-synchronizing method, such as structured text, to prevent total corruption by bit rot or accidental partial erasure.
+\subsection{Configuration}
+There are no requirement on the configuration format, but it is strongly recommended to be a format parsable by the serializer. It is also recommended that a comprehensive declarative style is employed and that the configuration files are composable (i.e. settings can be inherited) and support templates (i.e. that can be instantiated once per resource for multiple resources); it is recommended to allow inheriting from template instances.

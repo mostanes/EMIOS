@@ -1,0 +1,33 @@
+\section{Multi-application processes}
+\subsection{General considerations}
+Typically, operating systems are designed to create a process for each application. Since processes consume resources and require context switching for communication, this can be inefficient in many situations, particularly in the context of the many small tools philosophy of UNIX. Therefore, it makes sense to support running several related applications, that live in the same security context, in a single process. A notable case where multi-application processes are particularly useful is shell scripting.\\
+For performance purposes, runtime environments may implement in-process communication between multiple applications through "userland anonymous pipes", where the read() and write() can bypass system calls. Such a pipe must be created through the pipe() call with O\_USERLAND flag. Implementations may choose to either raise an error or promote the userland pipe to a regular anonymous pipe if its file descriptor is transferred outside of the process. Implementations may allow this behavior to be controlled by the applications.
+\subsection{Embedding protocol}
+An application supporting running embedded within another process must define a symbol "\_multistart", which is the entry point for application. The multistart entry point must further initialize/update the runtime and call the C standard main function\footnote{We refer to the "main" function concept, not necessarily a C implementation}, or a strongly typed equivalent where the application is designed as such.\\
+The multistart entry point must be called with the system calling convention. It should have one argument: a byte array reference (that is, a pointer to the data and the data size) to the serialized argument data. This data can be one of either:
+\begin{itemize}
+	\item An array of unstructured text arguments\\
+	These arguments are the same as in the case of invocation from a POSIX shell. The entry point must call the C standard main function.
+	\item An array of typed function arguments\\
+	The entry point must call the strongly typed equivalent of the C standard main function.
+\end{itemize}
+The typed function variant may not be implemented if the software only respects POSIX, in which case the multistart should raise an exception to the exception manager. All EMIOS-compliant software must provide a typed implementation of their main function.
+\clearpage
+\section{System Version Control}
+Operating systems should provide system version control software. This software should be designed to allow efficient backup and distribution of data across computers. A strong motivation for such software is the deployment of configuration files.\\
+For a version control system to be considered a SVCS, the following must hold:
+\begin{itemize}
+	\item must be a DVCS (Distributed VCS)
+	\item should support a client -- server model on top of the DVCS (shallow clones)
+	\item must be able to preserve and restore file metadata on demand:
+	\begin{itemize}
+		\item permissions
+		\item access and modification time
+		\item file attributes
+		\item full file metadata (optional, but strongly encouraged)
+	\end{itemize}
+	The metadata should default to being saved unless specified otherwise; with the restore operation occurring only on request, depending on the task for which the SVCS is used.
+	\item It must support storing changes as a DAG
+	\item It must support the following operations: repository creation and cloning, pushing and pulling changes (including updates), commit creation, rollback, merging, rebasing, cherry-picking and bisection.
+\end{itemize}
+It is recommended that SVCS interface with the underlying filesystem such that commits are created through filesystem snapshoting mechanisms, where this feature is available.
