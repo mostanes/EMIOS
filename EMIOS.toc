@@ -1,0 +1,73 @@
+\contentsline {section}{\numberline {1}Introduction}{2}{}%
+\contentsline {subsection}{\numberline {1.1}What do we refer to as middle-level interfaces?}{2}{}%
+\contentsline {subsection}{\numberline {1.2}On computers being smart}{2}{}%
+\contentsline {section}{\numberline {2}Contents}{4}{}%
+\contentsline {section}{\numberline {3}Security}{6}{}%
+\contentsline {subsection}{\numberline {3.1}Fundamental concepts}{6}{}%
+\contentsline {subsubsection}{\numberline {3.1.1}Security levels}{6}{}%
+\contentsline {subsubsection}{\numberline {3.1.2}Shells and secure paths}{7}{}%
+\contentsline {subsection}{\numberline {3.2}CapSecAP: Capability-based Security Application Protocol}{7}{}%
+\contentsline {subsubsection}{\numberline {3.2.1}Tokens are resource descriptors}{7}{}%
+\contentsline {subsubsection}{\numberline {3.2.2}High level overview}{7}{}%
+\contentsline {subsubsection}{\numberline {3.2.3}Descriptor passing through privileged child process}{7}{}%
+\contentsline {subsubsection}{\numberline {3.2.4}Descriptor passing through session bus}{7}{}%
+\contentsline {subsection}{\numberline {3.3}Signatures}{8}{}%
+\contentsline {section}{\numberline {4}Filesystem}{9}{}%
+\contentsline {section}{\numberline {5}System and library calls overhaul}{11}{}%
+\contentsline {subsection}{\numberline {5.1}The case for Unified Fork-Exec}{11}{}%
+\contentsline {subsection}{\numberline {5.2}Error handling}{11}{}%
+\contentsline {subsection}{\numberline {5.3}Up to date other functions}{11}{}%
+\contentsline {subsection}{\numberline {5.4}Machine readable system definitions}{12}{}%
+\contentsline {subsection}{\numberline {5.5}Message queues and asynchronous system calls}{12}{}%
+\contentsline {section}{\numberline {6}Serialization}{13}{}%
+\contentsline {subsection}{\numberline {6.1}Introduction}{13}{}%
+\contentsline {subsection}{\numberline {6.2}Primitive types}{13}{}%
+\contentsline {subsubsection}{\numberline {6.2.1}Implementation in binary formats}{14}{}%
+\contentsline {subsubsection}{\numberline {6.2.2}Implementation in textual formats}{14}{}%
+\contentsline {subsection}{\numberline {6.3}Typing system, polymorphism, and default schema}{14}{}%
+\contentsline {paragraph}{Default schema}{14}{}%
+\contentsline {paragraph}{Typed pointers}{15}{}%
+\contentsline {paragraph}{External pointers}{15}{}%
+\contentsline {subsection}{\numberline {6.4}Further information}{15}{}%
+\contentsline {paragraph}{Typing systems other than structural}{15}{}%
+\contentsline {paragraph}{Nominal typing}{15}{}%
+\contentsline {paragraph}{Extensions}{16}{}%
+\contentsline {section}{\numberline {7}Multi-application processes}{17}{}%
+\contentsline {subsection}{\numberline {7.1}General considerations}{17}{}%
+\contentsline {subsection}{\numberline {7.2}Embedding protocol}{17}{}%
+\contentsline {section}{\numberline {8}System Version Control}{18}{}%
+\contentsline {section}{\numberline {9}Software deployment}{19}{}%
+\contentsline {subsection}{\numberline {9.1}Build systems}{19}{}%
+\contentsline {subsection}{\numberline {9.2}Dependency management}{19}{}%
+\contentsline {subsubsection}{\numberline {9.2.1}URN namespace for dependency management}{19}{}%
+\contentsline {subsection}{\numberline {9.3}Versioning}{20}{}%
+\contentsline {subsection}{\numberline {9.4}DOBS build system}{21}{}%
+\contentsline {subsubsection}{\numberline {9.4.1}Recommendations}{22}{}%
+\contentsline {subsection}{\numberline {9.5}Deployment}{23}{}%
+\contentsline {subsubsection}{\numberline {9.5.1}OS and Component packages}{23}{}%
+\contentsline {subsubsection}{\numberline {9.5.2}Portable Interface}{23}{}%
+\contentsline {subsubsection}{\numberline {9.5.3}Packaging and building software}{24}{}%
+\contentsline {subsection}{\numberline {9.6}Pkgmgr interface}{24}{}%
+\contentsline {subsubsection}{\numberline {9.6.1}Specifying a package}{24}{}%
+\contentsline {subsubsection}{\numberline {9.6.2}pkginfo schema}{24}{}%
+\contentsline {subsubsection}{\numberline {9.6.3}statcheck}{24}{}%
+\contentsline {subsubsection}{\numberline {9.6.4}deptree}{25}{}%
+\contentsline {subsubsection}{\numberline {9.6.5}install}{25}{}%
+\contentsline {subsubsection}{\numberline {9.6.6}remove}{25}{}%
+\contentsline {subsubsection}{\numberline {9.6.7}dbupdate}{25}{}%
+\contentsline {subsubsection}{\numberline {9.6.8}dblist}{25}{}%
+\contentsline {subsubsection}{\numberline {9.6.9}filelist}{25}{}%
+\contentsline {subsubsection}{\numberline {9.6.10}stdio}{25}{}%
+\contentsline {subsubsection}{\numberline {9.6.11}lockdb, unlockdb}{25}{}%
+\contentsline {section}{\numberline {10}IPC Buses}{26}{}%
+\contentsline {subsection}{\numberline {10.1}Bus requirements}{26}{}%
+\contentsline {subsection}{\numberline {10.2}Interface}{26}{}%
+\contentsline {section}{\numberline {11}System Events}{27}{}%
+\contentsline {section}{\numberline {12}System Initialization and Runtime Management}{28}{}%
+\contentsline {subsection}{\numberline {12.1}General considerations}{28}{}%
+\contentsline {subsection}{\numberline {12.2}EMIOS SIRM}{28}{}%
+\contentsline {subsubsection}{\numberline {12.2.1}Init process}{28}{}%
+\contentsline {subsubsection}{\numberline {12.2.2}Daemon manager}{28}{}%
+\contentsline {subsubsection}{\numberline {12.2.3}Launch helper}{29}{}%
+\contentsline {subsubsection}{\numberline {12.2.4}Logging framework}{29}{}%
+\contentsline {subsection}{\numberline {12.3}Configuration}{29}{}%

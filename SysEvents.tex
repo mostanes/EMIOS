@@ -1,3 +1,5 @@
 \section{System Events}
-TODO: Create section
+EMIOS System Events are system-wide (i.e. not specific to an application, but rather to the computing system/cell\footnote{single kernel instance; not an entire cluster} as a whole) notices distributed through the EMIOS Bus, enabling EMIOS systems to dynamically respond to system changes.\\
+System Events may be created on system startup, startup hardware enumeration, hardware insertion/removal/hot-swap, configuration changes; daemon start-up, shutdown, failure, etc.; mounting or unmounting filesystems; network bring-up or bring-down (including intermediate stages such as carrier dis/connected, changes in layer 3 addresses, etc.), seat creation or removal, and others.\\
+TODO: Create section\\
 TODO: On Linux distros, this would be udev + systemd targets and unit files Before/After (including daemons, mounts, network, etc.).
